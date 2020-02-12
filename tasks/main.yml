@@ -1,0 +1,66 @@
+# tasks/main.yml
+# Create Elasticache instance and dependencies
+---
+- name: Lookup Elasticache subnet info
+  ec2_vpc_subnet_info:
+    filters:
+      "tag:Name": "{{ item }}"
+  loop: "{{ cache_subnet_names }}"
+  register: subnet_info
+
+- name: Create Elasticache subnet group
+  elasticache_subnet_group:
+    state: present
+    aws_region: "{{ aws_region }}"
+    name: "{{ cache_name }}"
+    description: Subnet group for {{ cache_name }}
+    subnets: "{{ subnet_info.results | sum(attribute='subnets', start=[]) | map(attribute='id') | list }}"
+
+- name: Create security group for Elasticache instance 
+  ec2_group:
+    name: "{{ cache_name }}-sg"
+    description: "Security group for {{ cache_name }}"
+    purge_rules: False
+    region: "{{ aws_region }}"
+    vpc_id: "{{ vpc_id }}"
+    rules:
+      - proto: tcp
+        from_port: 6379
+        to_port: 6379
+        group_name: "{{ cache_ingress_sg_names }}"
+    
+    tags: 
+      Name : "{{ cache_name }}-sg"
+  
+- name: Lookup Elasticache security group info
+  ec2_group_info:
+    filters:
+      group-name: "{{ cache_name }}-sg"
+  register: cache_sg_info  
+
+- name: Check for existence of Elasticache replication group 
+  elasticache_info:
+    name: "{{ cache_name }}-001"
+  register: cache_exists
+
+- name: Create Elasticache replication group
+  command: >
+    aws elasticache create-replication-group
+    --replication-group-id {{ cache_name|quote }}
+    --replication-group-description {{ cache_name|quote }}
+    --automatic-failover-enabled
+    --cache-subnet-group-name {{ cache_name|quote }} 
+    --security-group-ids {{ cache_sg_info|json_query('security_groups[0].group_id')|quote }}
+    --cache-node-type {{ cache_node_type|quote }}
+    --engine {{ cache_engine|quote }}
+    --engine-version {{ cache_engine_version|quote }}
+    --at-rest-encryption-enabled
+    --num-cache-clusters {{ cache_num_clusters|quote }}
+    --snapshot-retention-limit 7
+    --snapshot-window {{ cache_snapshot_window|quote }}
+    --preferred-maintenance-window {{ cache_preferred_maintenance_window|quote }}
+    --auto-minor-version-upgradeache_exists|j
+  when: not cache_exists|json_query('elasticache_clusters[0]')
+  register: create_replication_group_output
+- debug: 
+    var: create_replication_group_output
