@@ -59,7 +59,7 @@
     --snapshot-retention-limit 7
     --snapshot-window {{ cache_snapshot_window|quote }}
     --preferred-maintenance-window {{ cache_preferred_maintenance_window|quote }}
-    --auto-minor-version-upgradeache_exists|j
+    --auto-minor-version-upgrade
   when: not cache_exists|json_query('elasticache_clusters[0]')
   register: create_replication_group_output
 - debug: 
