@@ -20,7 +20,7 @@
   ec2_group:
     name: "{{ cache_name }}-sg"
     description: "Security group for {{ cache_name }}"
-    purge_rules: False
+    purge_rules: True
     region: "{{ aws_region }}"
     vpc_id: "{{ vpc_id }}"
     rules:
