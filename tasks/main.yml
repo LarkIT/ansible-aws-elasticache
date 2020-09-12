@@ -22,7 +22,7 @@
     description: "Security group for {{ cache_name }}"
     purge_rules: True
     region: "{{ aws_region }}"
-    vpc_id: "{{ vpc_id }}"
+    vpc_id: "{{ aws_vpc_id }}"
     rules:
       - proto: tcp
         from_port: 6379
